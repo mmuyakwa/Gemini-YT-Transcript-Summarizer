@@ -5,7 +5,7 @@ from youtube_transcript_api import YouTubeTranscriptApi
 import google.generativeai as genai
 
 # Load environment variables
-load_dotenv()
+load_dotenv(override=True)
 
 # Configure Google GenerativeAI
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
@@ -16,13 +16,27 @@ prompt = """Welcome, Video Summarizer! Your task is to distill the essence of a 
 
 # Function to extract transcript details from a YouTube video URL
 def extract_transcript_details(youtube_video_url):
-    try:
-        video_id = youtube_video_url.split("=")[1]
-        transcript_text = YouTubeTranscriptApi.get_transcript(video_id)
+    # Check if the URL contains "=" which indicates a full YouTube URL
+    if "v=" in youtube_video_url:
+        video_id = youtube_video_url.split("v=")[-1].split("&")[0]
+        print(f"Video ID with 'v=': {video_id}")
+    # Check if the URL contains the short form "youtu.be"
+    elif "youtu.be" in youtube_video_url:
+        video_id = youtube_video_url.split("/")[-1]
+        print(f"Video ID with 'youtu.be': {video_id}")
+    else:
+        # If the URL doesn't match the expected format, raise an error
+        raise ValueError("The YouTube URL has an invalid format.")
 
-        transcript = ""
-        for i in transcript_text:
-            transcript += " " + i["text"]
+    # Display the video thumbnail
+    st.image(f"http://img.youtube.com/vi/{video_id}/0.jpg", use_column_width=True)
+
+    try:
+        transcript_text = YouTubeTranscriptApi.get_transcript(
+            video_id, languages=["en", "de"]
+        )
+
+        transcript = " ".join(item["text"] for item in transcript_text)
 
         return transcript
     except Exception as e:
@@ -43,11 +57,6 @@ st.title(
 youtube_link = st.text_input("Enter YouTube Video Link:")
 
 if youtube_link:
-    video_id = youtube_link.split("=")[1]
-    st.image(f"http://img.youtube.com/vi/{video_id}/0.jpg", use_column_width=True)
-
-# Button to trigger summary generation
-if st.button("Get Detailed Notes"):
     transcript_text = extract_transcript_details(youtube_link)
 
     if transcript_text:
