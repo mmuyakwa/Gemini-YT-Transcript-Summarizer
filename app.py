@@ -1,7 +1,7 @@
 import os
 import streamlit as st
 from dotenv import load_dotenv
-from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled
 import google.generativeai as genai
 
 # Load environment variables
@@ -16,6 +16,18 @@ prompt = """Welcome, Video Summarizer! Your task is to distill the essence of a 
 
 # Function to extract transcript details from a YouTube video URL
 def extract_transcript_details(youtube_video_url):
+    """
+    Extracts transcript details from a YouTube video URL.
+
+    Args:
+        youtube_video_url (str): The URL of the YouTube video.
+
+    Returns:
+        str: The transcript of the YouTube video.
+
+    Raises:
+        ValueError: If the YouTube URL has an invalid format.
+    """
     # Check if the URL contains "=" which indicates a full YouTube URL
     if "v=" in youtube_video_url:
         video_id = youtube_video_url.split("v=")[-1].split("&")[0]
@@ -31,22 +43,45 @@ def extract_transcript_details(youtube_video_url):
     # Display the video thumbnail
     st.image(f"http://img.youtube.com/vi/{video_id}/0.jpg", use_column_width=True)
 
+    # Get the transcript for the YouTube video
     try:
-        transcript_text = YouTubeTranscriptApi.get_transcript(
-            video_id, languages=["en", "de"]
-        )
+        # Get the list of available transcripts
+        transcript_list = list(YouTubeTranscriptApi.list_transcripts(video_id))
+        # Check if there are any transcripts available
+        if not transcript_list:
+            st.write("Sorry, no transcript available for the provided YouTube video.")
+            return None
+        else:
+            # Get the transcript for the video in English or German
+            try:
+                transcript_text = YouTubeTranscriptApi.get_transcript(
+                    video_id, languages=["en", "de"]
+                )
+                
+                # Combine the text from all the transcript items into a single string
+                transcript = " ".join(item["text"] for item in transcript_text)
 
-        transcript = " ".join(item["text"] for item in transcript_text)
+                # Return the transcript
+                return transcript
+            except Exception as e:
+                # If there is an error in fetching the transcript, raise the error
+                raise e
 
-        return transcript
+    # Handle the case where the video has disabled subtitles
+    except TranscriptsDisabled:
+        st.write("Subtitles are disabled for this video.")
+        return None
+    # Handle any other exceptions
     except Exception as e:
-        raise e
+        st.write(f"An error occurred: {str(e)}")
+        return None
 
 
 # Function to generate summary using Google Gemini Pro
 def generate_gemini_content(transcript_text, prompt):
     model = genai.GenerativeModel("gemini-pro")
     response = model.generate_content(prompt + transcript_text)
+    # Return the generated summary
     return response.text
 
 
@@ -54,8 +89,10 @@ def generate_gemini_content(transcript_text, prompt):
 st.title(
     "Gemini YouTube Transcript Summarizer: Extract Key Insights from YouTube Videos"
 )
+# Input field for the YouTube video link
 youtube_link = st.text_input("Enter YouTube Video Link:")
 
+# Check if the YouTube link is provided
 if youtube_link:
     transcript_text = extract_transcript_details(youtube_link)
 
