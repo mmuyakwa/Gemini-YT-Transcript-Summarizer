@@ -1,0 +1,14 @@
+services:
+  gemini-yt-transcript-summarizer:
+    container_name: gemini-yt-transcript-summarizer
+    hostname: gemini-yt-transcript-summarizer
+    build: .
+    env_file:
+      - .env
+    volumes:
+      - ./credentials.json:/app/credentials.json
+    environment:
+      - "GOOGLE_API_KEY=${GOOGLE_API_KEY}"
+    ports:
+      - 8505:8501
+    restart: unless-stopped

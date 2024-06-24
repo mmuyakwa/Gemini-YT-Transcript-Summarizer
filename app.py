@@ -7,6 +7,18 @@ import google.generativeai as genai
 # Load environment variables
 load_dotenv(override=True)
 
+# Set variable if script is running in a docker container
+DOCKER_ENV = False
+
+try:
+    # Set the Google Application Credentials (Needed when running in a docker container)
+    if "/app/credentials.json" in os.listdir("/app"): # This is th case when running in a docker container
+        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = '/app/credentials.json'
+        DOCKER_ENV = True
+except:
+    print("Not running in a docker container")
+    pass
+
 # Configure Google GenerativeAI
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
